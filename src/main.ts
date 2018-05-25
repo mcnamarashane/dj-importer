@@ -11,6 +11,7 @@ const spotify = new SpotifyWebApi({
     clientSecret: process.env.SPOTIFY_SECRET_KEY
 });
 const got = require('got');
+const async = require("async");
 
 
 interface IConfig {
@@ -31,6 +32,10 @@ interface ISpotifyTrack {
     artist : string;
 }
 
+interface youtubeVid {
+    name : string;
+    url : string;
+}
 class Main {
 
     config : IConfig;
@@ -79,7 +84,7 @@ class Main {
                         spotify.clientCredentialsGrant()
                             .then((d: any) => {
                                 spotify.setAccessToken(d.body['access_token']);
-                            })
+                            });
                         spotify.searchPlaylists(searchQuery, {market: "us"})
                             .then((d: any) => {
                                 const items = d.body.playlists.items;
@@ -92,7 +97,7 @@ class Main {
                                     f.name=f.name;
                                     f.username=f.owner.id;
 
-                                })
+                                });
                                 resolve(items);
                             })
 
@@ -122,13 +127,12 @@ class Main {
 
 
         return new Promise<ISpotifyTrack[]>((resolve, reject) => {
-            let usesarr: any;
             spotify.clientCredentialsGrant()
                 .then((d: any) => {
                     spotify.setAccessToken(d.body['access_token']);
-                })
+                });
 
-            spotify.getPlaylistTracks(user, id,{limit:5})
+            spotify.getPlaylistTracks(user, id)
                 .then((data: any) => {
                     let items = data.body.items;
                     console.log("Got these results:");
@@ -156,35 +160,62 @@ class Main {
             // response.send(data);
         })
     }
-    private searchYoutube(query:string) : void {
-        console.log(query);
-        let main="https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q=";
-        let tail="&key=AIzaSyCDGs5oUzVU2tE6dKfeHolpLGSzd6eoUtk";
-        let url:string=+main+query+tail
-        console.log(url);
-        got(url)
-            .then((response:any)=> {
-                console.log(response.body);
-            });
-        // See YoutubePhp for how youtube works
-                //"https://www.googleapis.com/youtube/v3/search?key=".$this->developerKey."&part=snippet&".http_build_query($query_array);
-        //$query_array = ([
-        //                 "order" => $this->order,
-        //                 "maxResults" => $this->numVideos,
-        //                 "videoCategoryId" => $this->typeId,
-        //                 "type" => $searchType,
-        //                 "q" => $searchTerm,
-        //                 "format" => "json",
-        //             ]);
-        //https://www.googleapis.com/youtube/v3/search?key=AIzaSyCDGs5oUzVU2tE6dKfeHolpLGSzd6eoUtk&part=snippet&".http_build_query($query_array)
-        // YOUTUBE_KEY=AIzaSyCDGs5oUzVU2tE6dKfeHolpLGSzd6eoUtk
-        //    buildApiRequest('GET',
-        //                 '/youtube/v3/search',
-        //                 {'maxResults': '25',
-        //                  'part': 'snippet',
-        //                  'q': 'surfing',
-        //                  'type': ''});
+    private searchYoutube(query:string) :  Promise<youtubeVid[]> {
+        //console.log(query);
+
+        let url: string = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=" + query + "&key=AIzaSyCDGs5oUzVU2tE6dKfeHolpLGSzd6eoUtk"
+        //url="'"+url+"'";
+        //console.log(url);
+
+        return new Promise<youtubeVid[]>((resolve, reject) => {
+            got(url)
+            .then((data: any) => {
+                const decodedbody = JSON.parse(data.body);
+                let items = decodedbody.items;
+                console.log("Got these results:");
+                items.forEach((f: any) => {
+                   // console.log('Name: ' + f.snippet.title);
+                   // console.log('url: ' + f.id.videoId);
+                    f.name = f.snippet.title;
+                    f.url = "https://www.youtube.com/watch?v=" + f.id.videoId;
+                    console.log('Name: ' + f.name);
+                    console.log('url: ' + f.url);
+                    resolve(items);
+                });
+
+            }, (err: any, results: any) => {
+                if (err) throw err
+                // results is now an array of the response bodies
+                console.log(results)
+            })
+
+                .catch((err: any) => {
+                    console.log(err);
+                });
+
+            // See YoutubePhp for how youtube works
+            //"https://www.googleapis.com/youtube/v3/search?key=".$this->developerKey."&part=snippet&".http_build_query($query_array);
+            //$query_array = ([
+            //                 "order" => $this->order,
+            //                 "maxResults" => $this->numVideos,
+            //                 "videoCategoryId" => $this->typeId,
+            //                 "type" => $searchType,
+            //                 "q" => $searchTerm,
+            //                 "format" => "json",
+            //             ]);
+            //https://www.googleapis.com/youtube/v3/search?key=AIzaSyCDGs5oUzVU2tE6dKfeHolpLGSzd6eoUtk&part=snippet&".http_build_query($query_array)
+            // YOUTUBE_KEY=AIzaSyCDGs5oUzVU2tE6dKfeHolpLGSzd6eoUtk
+            //    buildApiRequest('GET',
+            //                 '/youtube/v3/search',
+            //                 {'maxResults': '25',
+            //                  'part': 'snippet',
+            //                  'q': 'surfing',
+            //                  'type': ''});
+            //G
+            // ET "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q=surfing&key=AIzaSyCDGs5oUzVU2tE6dKfeHolpLGSzd6eoUtk"
+        })
     }
+
 
     private sendHtml(html : string, response: Response, next: Next) : void {
         response.setHeader('Content-Type', 'text/html');
