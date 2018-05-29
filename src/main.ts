@@ -35,7 +35,7 @@ interface ISpotifyTrack {
 }
 
 interface youtubeVid {
-    name : string;
+    //name : string;
     url : string;
 }
 class Main {
@@ -134,24 +134,41 @@ class Main {
                     spotify.setAccessToken(d.body['access_token']);
                 });
 
-            spotify.getPlaylistTracks(user, id,{limit:1})
+            spotify.getPlaylistTracks(user, id)
                 .then((data: any) => {
                     let items = data.body.items;
                     console.log("Got these results:");
                     items.forEach((f: any) => {
-                        console.log('Name: '+ f.track.name);
-                        console.log('Artist: '+ f.track.artists[0].name);
-
                         f.name=f.track.name;
                         f.artist=f.track.artists[0].name;
-                        f.youtubeId=this.searchYoutube(f.name).then(results => {
-                            f.youtubeId=JSON.stringify(results);
-                            console.log("maybe:"+f.youtubeId);
-                        });
+                        console.log('Name: '+ f.name);
+                        console.log('Artist: '+ f.artist);
+                    })
+                   async.mapLimit(items,1, (item:any, cb:any) => {
+                        this.searchYoutube(item.name).then((data: any) =>{
+                            // console.log('Name: ' + results.snippet.title);
+                            // console.log('url: ' + results.id.videoId);
+                            // resolve(results.id.videoID);
+                            // results is now an array of the response bodies
+                            //console.log("youtube url:"+results[0].items[0].url);
+                        //const name =data[0].items[0].snippet.title;
+                            item.youtubeId = data[0].id.videoId;
+                            //console.log(item.youtubeId);
+                        //return(f.url);
+                        //return( results[0].items[0].url);
+                        //const id=results[0].items[0].id.videoId;
 
+                            cb(null, item.youtubeId);
+                        })
+
+                    }, (err:any, results:any) => {
+                       console.log(results);
+                       resolve(items);
+                        return(results);
 
                     });
-                    resolve(items);
+
+                    //resolve(items);
                 })
                 .catch((err: any) => {
                     console.log(err);
@@ -181,38 +198,25 @@ class Main {
                         const decodedbody = JSON.parse(data.body);
                        let items = decodedbody.items;
                         //console.log("Got these results:");
-                        items.forEach((f: any) => {
-                            async.mapLimit(data,1, function (url: any, cb: any) {
-                            cb(null, { items})
-                        }, (err: any, results: any) => {
-                               // console.log('Name: ' + results.snippet.title);
-                               // console.log('url: ' + results.id.videoId);
-                                //resolve(results.id.videoID);
-                            // results is now an array of the response bodies
-                            //console.log("youtube url:"+results[0].items[0].url);
-                                f.name =results[0].items[0].snippet.title;
-                                f.url = "https://www.youtube.com/watch?v=" + results[0].items[0].id.videoId;
-                                console.log('Name: ' + f.name);
-                                console.log('url: ' + f.url);
-                                results=f.url;
-                                console.log(results);
-                                //return(f.url);
-                                resolve(results);
-
-                            //return( results[0].items[0].url);
-                            //const id=results[0].items[0].id.videoId;
+                    items=items.map((f:any)=>{
+                        //console.log(items);
+                        f.name =f.snippet.title;
+                        f.url = "https://www.youtube.com/watch?v=" + f.id.videoId;
+                        //console.log('Name: ' + f.name);
+                        console.log(f.name);
+                        console.log(f.url);
+                        return(f);
+                    });
+                        resolve(items);
                         })
 
-
+                .catch((err: any) => {
+                    console.log(err);
+                });
                     });
 
-                })
+                }
 
-            .catch((err: any) => {
-                console.log(err);
-            });
-
-    }) ;
 
 
 
@@ -236,7 +240,7 @@ class Main {
             //                  'type': ''});
             //G
             // ET "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q=surfing&key=AIzaSyCDGs5oUzVU2tE6dKfeHolpLGSzd6eoUtk"
-    }
+
 
 
     private sendHtml(html : string, response: Response, next: Next) : void {
