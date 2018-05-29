@@ -10,6 +10,7 @@ const spotify = new SpotifyWebApi({
     clientId: process.env.SPOTIFY_CLIENT_ID,
     clientSecret: process.env.SPOTIFY_SECRET_KEY
 });
+const ytkey=process.env. YOUTUBE_KEY;
 const got = require('got');
 const async = require("async");
 
@@ -30,6 +31,7 @@ interface ISpotifyPlaylist {
 interface ISpotifyTrack {
     name : string;
     artist : string;
+    youtubeId : string;
 }
 
 interface youtubeVid {
@@ -132,27 +134,31 @@ class Main {
                     spotify.setAccessToken(d.body['access_token']);
                 });
 
-            spotify.getPlaylistTracks(user, id)
+            spotify.getPlaylistTracks(user, id,{limit:1})
                 .then((data: any) => {
                     let items = data.body.items;
                     console.log("Got these results:");
                     items.forEach((f: any) => {
-                        //console.log('Name: '+ f.track.name);
-                        //console.log('Artist: '+ f.track.artists[0].name);
+                        console.log('Name: '+ f.track.name);
+                        console.log('Artist: '+ f.track.artists[0].name);
 
                         f.name=f.track.name;
-                        f.artist=f.track.artists[0].name
-                        resolve(items);
-                        this.searchYoutube(f.name);
+                        f.artist=f.track.artists[0].name;
+                        f.youtubeId=this.searchYoutube(f.name).then(results => {
+                            f.youtubeId=JSON.stringify(results);
+                            console.log("maybe:"+f.youtubeId);
+                        });
 
-                    })
+
+                    });
+                    resolve(items);
                 })
                 .catch((err: any) => {
                     console.log(err);
                 });
 
 
-            const data: ISpotifyTrack[] = [
+            const items: ISpotifyTrack[] = [
                 //{name: "Coming Home", artist: "Tiesto Mesto"},
                // {name: "99 Problems", artist: "Jay-z"},
             ];
@@ -163,35 +169,52 @@ class Main {
     private searchYoutube(query:string) :  Promise<youtubeVid[]> {
         //console.log(query);
 
-        let url: string = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=" + query + "&key=AIzaSyCDGs5oUzVU2tE6dKfeHolpLGSzd6eoUtk"
+        let url: string = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=" + query + "&key="+ytkey;
+        let ret:any;
         //url="'"+url+"'";
         //console.log(url);
 
         return new Promise<youtubeVid[]>((resolve, reject) => {
             got(url)
-            .then((data: any) => {
-                const decodedbody = JSON.parse(data.body);
-                let items = decodedbody.items;
-                console.log("Got these results:");
-                items.forEach((f: any) => {
-                   // console.log('Name: ' + f.snippet.title);
-                   // console.log('url: ' + f.id.videoId);
-                    f.name = f.snippet.title;
-                    f.url = "https://www.youtube.com/watch?v=" + f.id.videoId;
-                    console.log('Name: ' + f.name);
-                    console.log('url: ' + f.url);
-                    resolve(items);
-                });
+                .then((data: any) => {
 
-            }, (err: any, results: any) => {
-                if (err) throw err
-                // results is now an array of the response bodies
-                console.log(results)
-            })
+                        const decodedbody = JSON.parse(data.body);
+                       let items = decodedbody.items;
+                        //console.log("Got these results:");
+                        items.forEach((f: any) => {
+                            async.mapLimit(data,1, function (url: any, cb: any) {
+                            cb(null, { items})
+                        }, (err: any, results: any) => {
+                               // console.log('Name: ' + results.snippet.title);
+                               // console.log('url: ' + results.id.videoId);
+                                //resolve(results.id.videoID);
+                            // results is now an array of the response bodies
+                            //console.log("youtube url:"+results[0].items[0].url);
+                                f.name =results[0].items[0].snippet.title;
+                                f.url = "https://www.youtube.com/watch?v=" + results[0].items[0].id.videoId;
+                                console.log('Name: ' + f.name);
+                                console.log('url: ' + f.url);
+                                results=f.url;
+                                console.log(results);
+                                //return(f.url);
+                                resolve(results);
 
-                .catch((err: any) => {
-                    console.log(err);
-                });
+                            //return( results[0].items[0].url);
+                            //const id=results[0].items[0].id.videoId;
+                        })
+
+
+                    });
+
+                })
+
+            .catch((err: any) => {
+                console.log(err);
+            });
+
+    }) ;
+
+
 
             // See YoutubePhp for how youtube works
             //"https://www.googleapis.com/youtube/v3/search?key=".$this->developerKey."&part=snippet&".http_build_query($query_array);
@@ -213,7 +236,6 @@ class Main {
             //                  'type': ''});
             //G
             // ET "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q=surfing&key=AIzaSyCDGs5oUzVU2tE6dKfeHolpLGSzd6eoUtk"
-        })
     }
 
 

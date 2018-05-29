@@ -110,7 +110,7 @@
                 dataType: 'json',
                 data: JSON.stringify(params),
                 success: function (results) {
-                    const lis = results.map(f => `<li style="padding-bottom: 5px;">${f.artist} - ${f.name}</li>`);
+                    const lis = results.map(f => `<li style="padding-bottom: 5px;">${f.artist} - ${f.name}-${f.youtubeId}</li>`);
                     $("#trackResults").html(lis.join("\n"));
                 },
             });
