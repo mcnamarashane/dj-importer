@@ -184,6 +184,7 @@ class Main {
                                 console.log('Artist: '+ f.artist);
                                 console.log('Position: '+f.position);
                             });
+                            let position=0;
                             async.mapLimit(items,1, (item:any, cb:any) => {
                                 this.searchYoutube(item.artist+" "+item.name).then((data: any) =>{
                                     // console.log('Name: ' + results.snippet.title);
@@ -196,8 +197,10 @@ class Main {
                                     item.title=data[0].snippet.title;
                                     item.youtubeId = data[0].id.videoId;
                                     item.thumb=data[0].snippet.thumbnails.default.url;
-                                    let position=0;
-                                    let sql = "INSERT INTO playlist_song (video_id,video_title,thumb_url,position) VALUES ("+'\''+item.youtubeId+'\''+','+'\''+item.title+'\''+','+'\''+item.thumb+'\''+','+'\''+(position+1)+'\''+")";
+                                   // item.title=querystring.escape(item.title);
+
+                                    position=position+1;
+                                    let sql = "INSERT INTO playlist_song (video_id,video_title,thumb_url,position,playlist_id) VALUES ("+con.escape(item.youtubeId)+','+con.escape(item.title)+','+con.escape(item.thumb)+','+con.escape(position)+','+(SELECT id FROM Playlist WHERE name="Spotify & Chill-spotify")+ ")";
                                     con.query(sql, function (err:any, result:any) {
                                        if (err) throw err;
                                        console.log("1 record inserted");
