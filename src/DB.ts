@@ -81,6 +81,10 @@ export class DB {
                         console.log(items);
                              console.log('Id: ' + items.id);
                              console.log('name: ' + items.name);
+                             console.log('user_id: ' + items.user_id);
+                              console.log('created_at: ' + items.created_at);
+                             console.log('updated_at: ' + items.updated_at);
+
                             // f.username = f.owner.id;
                         resolve(items)
                     }) .catch((err: any) => {
