@@ -100,10 +100,10 @@ class Main {
 
     }
     private doSpotifySearch(searchQuery : string) : Promise<ISpotifyPlaylist[]> {
-        con.connect(function(err:any) {
-            console.log("Connected!");
-            if (err) throw err;
-        });
+       // con.connect(function(err:any) {
+        //    console.log("Connected!");
+        //    if (err) throw err;
+       // });
         return new Promise<ISpotifyPlaylist[]>((resolve, reject) => {
             spotify.clientCredentialsGrant()
                 .then((d: any) => {
@@ -111,6 +111,7 @@ class Main {
                     spotify.searchPlaylists(searchQuery, {market: "us"})
                         .then((d: any) => {
                             const items = d.body.playlists.items;
+                            console.log(items[0]);
                             console.log("searched playlists");
                             items.forEach((f: any) => {
                                 console.log('Id: ' + f.id);
@@ -119,14 +120,14 @@ class Main {
                                 f.id = f.id;
                                 f.name = f.name;
                                 f.username = f.owner.id;
+                              //  f.id.onclick(items.id=f.id);
+                               // f.name.onclick(items.name=f.name);
+                                    //let sql = "INSERT INTO playlist (name,created_at,updated_at) VALUES ("+'\''+f.name+'\''+','+'\''+datetime+'\''+','+'\''+datetime+'\''+")";
+                                   // con.query(sql, function (err:any, result:any) {
+                                     //   if (err) throw err;
+                                     //   console.log("1 record inserted");
 
-
-                                    let sql = "INSERT INTO playlist (name,created_at,updated_at) VALUES ("+'\''+f.name+'\''+','+'\''+datetime+'\''+','+'\''+datetime+'\''+")";
-                                    con.query(sql, function (err:any, result:any) {
-                                        if (err) throw err;
-                                        console.log("1 record inserted");
-
-                                });
+                              //  });
 
 
                             });
@@ -200,7 +201,7 @@ class Main {
                                    // item.title=querystring.escape(item.title);
 
                                     position=position+1;
-                                    let sql = "INSERT INTO playlist_song (video_id,video_title,thumb_url,position,playlist_id) VALUES ("+con.escape(item.youtubeId)+','+con.escape(item.title)+','+con.escape(item.thumb)+','+con.escape(position)+','+(SELECT id FROM Playlist WHERE name="Spotify & Chill-spotify")+ ")";
+                                    let sql = "INSERT INTO playlist_song (video_id,video_title,thumb_url,position,playlist_id) VALUES ("+con.escape(item.youtubeId)+','+con.escape(item.title)+','+con.escape(item.thumb)+','+con.escape(position)+ ")";
                                     con.query(sql, function (err:any, result:any) {
                                        if (err) throw err;
                                        console.log("1 record inserted");
