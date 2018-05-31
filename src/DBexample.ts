@@ -20,11 +20,14 @@ const pl= {
     updatedAt:date2
 
 };
+const song=
+   "Eric Church-Jack Daniels";
 const config : any = JSON.parse(fs.readFileSync(__dirname + "/../config.json", "utf8"));
 const db = new DB(config.mysql);
 
    //db.findPlaylist(45);
-  db.insertPlaylist(Playlist);
+  //db.insertPlaylist(Playlist);
+  //db.insertSong(song);
    //console.log(ret);
    //db.updatetPlaylist(pl);
    //db.deletePlaylist(pl);
