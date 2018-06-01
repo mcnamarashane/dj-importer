@@ -2,12 +2,77 @@ import * as mysql from "mysql";
 import {Pool} from "mysql";
 import {ISpotifyPlaylist} from "./main";
 import {PoolConnection} from "mysql";
+import "reflect-metadata";
+import {Entity,Column,PrimaryGeneratedColumn} from "typeorm";
+import {createConnection} from "typeorm";
+
+const DBMapping = [
+
+    {
+        table: "playlist",
+        _kind : "Playlist",
+        numCols : 3, // number of columns that will be updated when inserting a playlist (
+        mapping: [ ["spotifyId", "spotify_id"], ["spotifyUsername" , "spotfiy_username"],["name", "name"],["createdAt","created_at"],["updatedAt","updated_at"] ]
+    },
+    {
+        table: "playlist_song",
+        _kind : "Playlist",
+        numCols : 5, // number of columns that will be updated when inserting a song (
+        mapping: [["videoId", "video_id"],["videoTitle" , "video_title"],["thumbUrl","thumb_url"],["position","position"],["playlist_id","playlist_id"],["createdAt", "created_at"],["updatedAt","updated_at"] ]
+    }
+
+];
+
+function test(playlist : BaseEntity) {
+
+
+}
+
+interface BaseEntity {
+    _kind : string;
+    [key: string]: any;
+}
+
+export interface PlaylistSong extends BaseEntity {
+    id:number;
+    video_id:string;
+    video_title:string;
+    thumb_url:string;
+    position:number;
+    playlist_id:number;
+    createdAt : Date;
+    updatedAt : Date;
+}
+
+export interface Playlist extends BaseEntity {
+    id : number;
+    spotifyId : string;
+    spotifyUsername : string;
+    name : string;
+    createdAt : Date;
+    updatedAt : Date;
+}
 import * as fs from "fs";
 //var mysq      = require('mysql');
 //const con=mysq.createConnection(JSON.parse(fs.readFileSync(__dirname + "/../config.json", "utf8")));
-import {Main} from "./main"
-const ytkey=process.env. YOUTUBE_KEY;
+import {playlist} from "./entity/User";
+import {playlist_song} from "./entity/User";
 
+//const ytkey=process.env. YOUTUBE_KEY;
+const conn=createConnection({
+    type: "mysql",
+    host: "localhost",
+    port: 3306,
+    username: "jointdj",
+    password: "jointdj",
+    database: "jointdj",
+    entities: [
+        playlist,
+        playlist_song
+    ],
+    synchronize: true,
+    logging: false
+})
 export class DB {
 
     private pool : mysql.Pool;
@@ -18,155 +83,312 @@ export class DB {
     /**
      * Write a SELECT to find the playlist row with the database id = id and resolve it.
      * (You'll need this to power the insertPlaylist function below)
+     *
      */
-    public findPlaylist(id : number) : Promise<Playlist> {
-        return new Promise<Playlist>((resolve, reject) => {
-            //console.log(id);
-            this.getConnection().then(conn=> {
-                conn.query("SELECT * FROM playlist WHERE id = "+conn.escape(id), function (error: any, results: any) {
-                    if (error) throw error;
-                   // console.log(results);
-                    let id=results;
-                    resolve(id[0]);
-                    //console.log(id);
-                });
-                conn.release()
+    public test(play : BaseEntity) {
+
+        let table: any;
+        const type = play._kind;
+        console.log(type);
+        if (type == "Playlist") {
+            table = DBMapping[0];
+
+        }
+        else if (type == "PlaylistSong") {
+            table = DBMapping[1];
+        }
+        const cols = table.mapping.map((f: any) => f[1]);
+        let values: any[] = [];
 
 
-            })
+        //    console.log(updatedAt);
+            createConnection({
+                type: "mysql",
+            host: "localhost",
+            port: 3306,
+            username: "jointdj",
+            password: "jointdj",
+            database: "jointdj",
+            entities: [
+            playlist,
+                playlist_song
+        ],
+            synchronize: true,
+            logging: false
+    }).then(async connection => {
+                //console.log(createdAt)
+                if(play.name!=undefined) {
+                    console.log("Inserting a new playlist into the database...");
+                    const pl = new playlist();
 
-            })
+                    pl.id = play.id;
+                    pl.spotifyId = play.spotifyId;
+                    pl.spotifyUsername = play.spotifyUsername;
+                    pl.name = play.name;
+                    pl.createdAt = play.createdAt;
+                    pl.updatedAt = play.updatedAt;
+                    console.log(pl.createdAt);
+                    await connection.manager.save(pl);
+                    console.log("Saved a new user with id: " + pl.id);
+
+                    //console.log("Loading users from the database...");
+                    // const users = await connection.manager.find('playlist');
+                    //console.log("Loaded lists: ", users);
+
+                    // console.log("Here you can setup and run express/koa/any other framework.");
+                }
+                else{
+                    console.log("Inserting a new song into the database...");
+                    const pl = new playlist_song();
+                    pl.video_id = play.videoId;
+                    pl.video_title = play.videoTitle;
+                    pl.playlist_id=play.playlist_id;
+                    pl.thumb_url = play.thumbUrl;
+                    pl.position=play.position;
+                    pl.createdAt = play.createdAt;
+                    pl.updatedAt = play.updatedAt;
+                   // console.log(pl.createdAt);
+                    await connection.manager.save(pl);
+                    console.log("Saved a new user with id: " + pl.id);
+
+                    //console.log("Loading users from the database...");
+                    // const users = await connection.manager.find('playlist');
+                    //console.log("Loaded lists: ", users);
+
+                    // console.log("Here you can setup and run express/koa/any other framework.");
+                }
+            }).catch(error => console.log(error));
+            //  conn.query(s, [playlist[table.mapping[0][0]], playlist[table.mapping[1][0]], playlist[table.mapping[2][0]], playlist[table.mapping[3][0]]], function (err: any, results) {
+            //const vals = playlist[table.mapping.map((f:any) => f[1][0])];
+            //console.log(vals);
+            //console.log(table.mapping[0][0]);
+            //const vals = playlist[table.mapping[0][0]];
+            // const vals = playlist[table.mapping.map(f => f[0][0])];
+
+            // const sql = `INSERT INTO $(table.table) ${cols.join(", ")} ${vals.join(", ")}`;
 
 
+    }
+
+
+    public find(type:string,id : number)  {
+        createConnection({
+            type: "mysql",
+            host: "localhost",
+            port: 3306,
+            username: "jointdj",
+            password: "jointdj",
+            database: "jointdj",
+            entities: [
+                playlist,
+                playlist_song
+            ],
+            synchronize: true,
+            logging: false
+        }).then(async connection => {
+            //console.log(createdAt)
+            if(type=='playlist') {
+                console.log("Finding playlist into the database...");
+                const ply =  await connection.getRepository(playlist);
+                const pl=await ply.findOne(id);
+               // let d=Date.now();
+                console.log(pl);
+
+
+                //console.log("Loading users from the database...");
+                // const users = await connection.manager.find('playlist');
+                //console.log("Loaded lists: ", users);
+
+                // console.log("Here you can setup and run express/koa/any other framework.");
+            }
+            else{
+                console.log("Finding song into the database...");
+                const ply =  await connection.getRepository(playlist_song);
+                const pl=await ply.findOne(id);
+                // let d=Date.now();
+                console.log(pl);
+
+                //console.log("Loading users from the database...");
+                // const users = await connection.manager.find('playlist');
+                //console.log("Loaded lists: ", users);
+
+                // console.log("Here you can setup and run express/koa/any other framework.");
+            }
+        }).catch(error => console.log(error));
     }
       /**
      * The insight here is that you're taking in a spotify playlist,
      * need to generate, run an SQL INSERT, and then resolve the data from the newly inserted row
      */
-    public insertPlaylist(playlist : ISpotifyPlaylist) : Promise<Playlist> {
-        let results: any;
-        //let name=playlist.name;
-        //onsole.log(name);
-        //console.log(playlist);
-        let rid:  any;
-        return new Promise<Playlist>((resolve, reject) => {
+    public insert(play : BaseEntity)  {
 
-            this.getConnection()
-                .then(conn => {
+          let table: any;
+          //const type = play._kind;
+          console.log(play);
+          conn.then(async connection => {
+              //console.log(createdAt)
+              if(play.name!=undefined) {
+                  console.log("Inserting a new playlist into the database...");
+                  const pl = new playlist();
+                  pl.spotifyId = play.spotifyId;
+                  pl.spotifyUsername = play.spotifyUsername;
+                  pl.name = play.name;
+                  pl.createdAt = new Date().toLocaleString();
+                  pl.updatedAt = new Date().toLocaleString();
+                  //console.log(pl.createdAt);
+                  await connection.manager.save(pl);
+                  console.log("Saved a new user with id: " + pl.id);
 
-                    let sql = "INSERT INTO playlist (name) VALUES (" + conn.escape(playlist.name) + ")";
-                    conn.query(sql, function (err: any, result: any) {
-                        if (err)
-                            console.log("Error");
-                        else {
-                            console.log("Inserted Entry");
+                 // console.log("Loading users from the database...");
+                  // const rep = await connection.manager.find(playlist);
+                 // console.log("Loaded lists: ", rep);
 
+                  // console.log("Here you can setup and run express/koa/any other framework.");
 
-                            //playlist.name=playlist.name;
-                            // console.log(p)
-                            rid = result.insertId;
-                            console.log(rid);
+              }
+              else{
+                  console.log("Inserting a new song into the database...");
+                  const pl = new playlist_song();
+                  pl.video_id=play.videoId;
+                  pl.video_title = play.videoTitle;
+                  const ply =  await connection.getRepository(playlist);
+                  const psl=await ply.findOne({spotifyId:'37i9dQZF1DX7ZnTv0GKubq'});
+                  pl.playlist_id=psl.id;
+                  pl.thumb_url = play.thumbUrl;
+                  pl.position=play.position;
+                  pl.createdAt = new Date().toLocaleString();
+                  pl.updatedAt = new Date().toLocaleString();
+                  // console.log(pl.createdAt);
+                  await connection.manager.save(pl);
+                  console.log("Saved a new user with id: " + pl.id);
 
-                        }
-                    });
-                    //console.log(rid);
+                  //console.log("Loading users from the database...");
+                  // const users = await connection.manager.find('playlist_song');
+                //   console.log("Loaded lists: ", users);
 
-                    // const id = this.findPlaylist(results.insertId);
-                    //results=rid;
-                    //console.log(id);
-                    // const id = this.findPlaylist(results);
-                    //console.log(id
-                    conn.release();
-                    //resolve(rid);
-                    // return  this.findPlaylist(rid);
-                    return(rid);
+                  // console.log("Here you can setup and run express/koa/any other framework.");
 
-                }).then( conn => {
-                    this.getConnection().then(conn => {
+              }
+          }).catch(error => console.log(error));
+          //  conn.query(s, [playlist[table.mapping[0][0]], playlist[table.mapping[1][0]], playlist[table.mapping[2][0]], playlist[table.mapping[3][0]]], function (err: any, results) {
+          //const vals = playlist[table.mapping.map((f:any) => f[1][0])];
+          //console.log(vals);
+          //console.log(table.mapping[0][0]);
+          //const vals = playlist[table.mapping[0][0]];
+          // const vals = playlist[table.mapping.map(f => f[0][0])];
 
-                this.findPlaylist(rid).then((data: any) => {
+          // const sql = `INSERT INTO $(table.table) ${cols.join(", ")} ${vals.join(", ")}`;
 
-                    const items = data;
-                    console.log(items);
-                    console.log('Id: ' + items.id);
-                    console.log('name: ' + items.name);
-                    console.log('user_id: ' + items.user_id);
-                     console.log('created_at: ' + items.created_at);
-                    console.log('updated_at: ' + items.updated_at);
-
-                    // f.username = f.owner.id;
-                    resolve (items);
-                });
-                        conn.release();
-                })
-            })
-
-                .catch((err: any) => {
-                    console.log(err);
-                });
-
-            //results=rid;
-            //console.log(id);
-            // const id = this.findPlaylist(results);
-            //console.log(id);
-
-
-
-        });
-
-    }
+      }
 
     /**
      * Now, you're given data that exists in the database,
      * need to generate an UPDATE SQL query, and run it, and then just resolve the updated playlist.
      */
-    public updatetPlaylist(playlist : Playlist) : Promise<Playlist> {
-        return new Promise<Playlist>((resolve, reject) => {
-            var currentdate = new Date();
-            // 'YYYY-MM-DD HH:MM:SS
-            var datetime = currentdate.getFullYear()+'-'+ + (currentdate.getMonth()+1)+'-'+currentdate.getDate()+" "
-            + currentdate.getHours()+':'
-            + currentdate.getMinutes()+':'
-            + currentdate.getSeconds();
-            this.getConnection().then(conn => {
-                // do your things with conn here...
-                let sql = "Update playlist SET updated_at=NOW() WHERE id=45";
-                conn.query(sql, function (err:any, result:any) {
-                    if (err) throw err;
-                    console.log("1 record updated");
-                    console.log(result);
-                });
+    public update(type:any,id:number) {
+        createConnection({
+            type: "mysql",
+            host: "localhost",
+            port: 3306,
+            username: "jointdj",
+            password: "jointdj",
+            database: "jointdj",
+            entities: [
+                playlist,
+                playlist_song
+            ],
+            synchronize: true,
+            logging: false
+        }).then(async connection => {
+            //console.log(createdAt)
+            if(type=='playlist') {
+                console.log("Updating playlist into the database...");
+                const ply =  await connection.getRepository(playlist);
+                const pl=await ply.findOne(id);
+                // let d=Date.now();
 
-                // at some point you'll need to run this
-                conn.release();
-            })
-        .catch((err: any) => {
-                console.log(err);
-            });
-        });
+                pl.updatedAt = new Date().toLocaleString();
+                //console.log(pl.createdAt);
+                await connection.manager.save(pl);
+
+                //console.log("Loading users from the database...");
+                // const users = await connection.manager.find('playlist');
+                //console.log("Loaded lists: ", users);
+
+                // console.log("Here you can setup and run express/koa/any other framework.");
+            }
+            else{
+                console.log("Updating song into the database...");
+                const ply =  await connection.getRepository(playlist_song);
+                const pl=await ply.findOne(id);
+                // let d=Date.now();
+
+                pl.updatedAt = new Date().toLocaleString();
+                //console.log(pl.createdAt);
+                await connection.manager.save(pl);
+
+                //console.log("Loading users from the database...");
+                // const users = await connection.manager.find('playlist');
+                //console.log("Loaded lists: ", users);
+
+                // console.log("Here you can setup and run express/koa/any other framework.");
+            }
+        }).catch(error => console.log(error));
     }
 
     /**
      * Just generate and run the appropriate DELETE SQL statement and resolve when its done
      */
-    public deletePlaylist(playlist : Playlist) : Promise<boolean> {
-        return new Promise<boolean>((resolve, reject) => {
-            this.getConnection().then(conn => {
-                // do your things with conn here...
-                let sql = "Delete From playlist Where id=" +conn.escape(playlist.id) ;
-                conn.query(sql, function (err:any, result:any) {
-                    if (err) throw err;
-                    console.log("1 record updated");
-                    console.log(result);
-                });
+    public delete(type:any,id:number) {
+        createConnection({
+            type: "mysql",
+            host: "localhost",
+            port: 3306,
+            username: "jointdj",
+            password: "jointdj",
+            database: "jointdj",
+            entities: [
+                playlist,
+                playlist_song
+            ],
+            synchronize: true,
+            logging: false
+        }).then(async connection => {
+            //console.log(createdAt)
+            if (type == 'playlist') {
+                console.log("Updating playlist into the database...");
+                const ply = await connection.getRepository(playlist);
+                const pl = await ply.findOne(id);
+                // let d=Date.now();
 
+               // pl.updatedAt = new Date().toLocaleString();
+                //console.log(pl.createdAt);
+                await connection.manager.remove(pl);
 
-                // at some point you'll need to run this
-                conn.release();
-            });
-        });
+                //console.log("Loading users from the database...");
+                // const users = await connection.manager.find('playlist');
+                //console.log("Loaded lists: ", users);
+
+                // console.log("Here you can setup and run express/koa/any other framework.");
+            }
+            else {
+                console.log("Updating song into the database...");
+                const ply = await connection.getRepository(playlist_song);
+                const pl = await ply.findOne(id);
+                // let d=Date.now();
+
+               // pl.updatedAt = new Date().toLocaleString();
+                //console.log(pl.createdAt);
+                await connection.manager.remove(pl);
+
+                //console.log("Loading users from the database...");
+                // const users = await connection.manager.find('playlist');
+                //console.log("Loaded lists: ", users);
+
+                // console.log("Here you can setup and run express/koa/any other framework.");
+            }
+        }).catch(error => console.log(error));
     }
-
     private getConnection() : Promise<PoolConnection> {
         return new Promise<PoolConnection>((resolve, reject) => {
             this.pool.getConnection((err, connection) => {
@@ -322,6 +544,7 @@ export class DB {
 
         });
 }
+
 }
 
 export interface Playlist {

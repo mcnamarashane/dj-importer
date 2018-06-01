@@ -16,6 +16,7 @@ const async = require("async");
 const querystring = require('querystring');
 //var mysql = require('mysql');
 import {DB} from "./DB";
+import {Playlist} from "./DB";
 const config : any = JSON.parse(fs.readFileSync(__dirname + "/../config.json", "utf8"));
 const db = new DB(config.mysql);
 
@@ -35,9 +36,11 @@ interface IConfig {
 }
 
 export interface ISpotifyPlaylist {
+    spotifyId : string;
     id : string;
     name : string;
-    username : string;
+    spotifyUsername : string;
+
 }
 
 interface ISpotifyTrack {
@@ -47,16 +50,22 @@ interface ISpotifyTrack {
     thumb:string;
     position:number;
 }
-
+interface IYoutubeTrack {
+    name: string;
+    url: string;
+    thumburl: string
+    // id: string;
+}
 interface youtubeVid {
     name : string;
     url : string;
     thumburl:string;
 }
-export class Main {
-
+class Main {
     config : IConfig;
     server : restify.Server;
+
+
 
     public Main(params : IConfig) : void {
         this.config = params;
@@ -66,7 +75,6 @@ export class Main {
     public index(request: Request, response: Response, next: Next) : void {
         const html = fs.readFileSync(__dirname + "/../templates/index.html", "utf8");
         this.sendHtml(html, response, next);
-
     }
 
     private search(request: Request, response: Response, next: Next) : void {
@@ -81,11 +89,12 @@ export class Main {
                 next();
             });
     }
+
     private tracks(request: Request, response: Response, next: Next) : void {
+        const user : string = <string> request.body.user;
         const id : string = <string> request.body.id;
-        const user:string = <string> request.body.user;
-        const query=id+':'+user;
-        this.dotrackSearch(query)
+        const query = user + ":" + id;
+        this.doTrackSearch(query)
             .then(results => {
                 response.send(results);
                 next();
@@ -94,228 +103,130 @@ export class Main {
                 response.send(500, err);
                 next();
             });
-
     }
+
+
     private doSpotifySearch(searchQuery : string) : Promise<ISpotifyPlaylist[]> {
-       // con.connect(function(err:any) {
-        //    console.log("Connected!");
-        //    if (err) throw err;
-       // });
+       let query=querystring.escape(searchQuery);
         return new Promise<ISpotifyPlaylist[]>((resolve, reject) => {
             spotify.clientCredentialsGrant()
-                .then((d: any) => {
-                    spotify.setAccessToken(d.body['access_token']);
-                    spotify.searchPlaylists(searchQuery, {market: "us"})
-                        .then((d: any) => {
-                            const items = d.body.playlists.items;
-                            console.log(items[0]);
-                            console.log("searched playlists");
+                .then((data: any) => {
+                    spotify.setAccessToken(data.body['access_token']);
+                    spotify.searchPlaylists(query, {market: "us"})
+                        .then((data: any) => {
+                            const items = data.body.playlists.items;
+                            console.log("Got these results:");
                             items.forEach((f: any) => {
-                                console.log('Id: ' + f.id);
-                                console.log('name: ' + f.name);
-                                console.log('username: ' + f.owner.id);
-                                f.id = f.id;
-                                f.name = f.name;
                                 f.username = f.owner.id;
-                              //  f.id.onclick(items.id=f.id);
-                               // f.name.onclick(items.name=f.name);
-                                    //let sql = "INSERT INTO playlist (name,created_at,updated_at) VALUES ("+'\''+f.name+'\''+','+'\''+datetime+'\''+','+'\''+datetime+'\''+")";
-                                   // con.query(sql, function (err:any, result:any) {
-                                     //   if (err) throw err;
-                                     //   console.log("1 record inserted");
-
-                              //  });
-
-
+                                const myPlaylist = {
+                                    name: f.name,
+                                    spotifyUsername: f.username,
+                                    spotifyId: f.id,
+                                    _kind : "playlist"
+                                };
+                                db.insert(myPlaylist);
                             });
                             resolve(items);
-
                         })
-
                         .catch((err: any) => {
                             console.log(err);
                         });
-
-                })
-                .catch((err: any) => {
-                    console.log(err);
                 });
-
-            const data: ISpotifyPlaylist[] = [
-
-                // {id: items.id[0], username: 'user', name: 'name'},
-                // {id: 'id', username: 'user', name: 'name'},
-
+            const data : ISpotifyPlaylist[] = [
             ];
 
 
         })
     }
 
-    private dotrackSearch(searchQuery : string) : Promise<ISpotifyTrack[]> {
-        const query=searchQuery;
-        console.log(searchQuery);
-        const split=query.split(':',3);
-        console.log(split);
-        const id=split[0];
-        const user=split[1];
 
-        let position=1;
+    private doTrackSearch(searchQuery : string) : Promise<ISpotifyTrack[]> {
+        const splitter = searchQuery.split(':');
+        const user = splitter[0];
+        const id = splitter[1];
         return new Promise<ISpotifyTrack[]>((resolve, reject) => {
-
             spotify.clientCredentialsGrant()
                 .then((d: any) => {
                     spotify.setAccessToken(d.body['access_token']);
-                    spotify.getPlaylistTracks(user, id,{limit:5})
+                    spotify.getPlaylistTracks(user, id)//), {limit:2})
                         .then((data: any) => {
                             let items = data.body.items;
-                           console.log(items);
                             console.log("Got these results:");
                             items.forEach((f: any) => {
-                                f.name=f.track.name;
-                                f.artist=f.track.artists[0].name;
-                                f.position=position++;
-                                console.log('Name: '+ f.name);
-                                console.log('Artist: '+ f.artist);
-                                console.log('Position: '+f.position);
-
-                            });
-                            //let position:number;
-                            async.mapLimit(items,1, (item:any, cb:any) => {
-                                this.searchYoutube(item.artist+" "+item.name,item.position).then((data: any) =>{
-                                    // console.log('Name: ' + results.snippet.title);
-                                    // console.log('url: ' + results.id.videoId);
-                                    // resolve(results.id.videoID);
-                                    // results is now an array of the response bodies
-                                    //console.log(data[0].snippet.title);
-                                    //const name =data[0].items[0].snippet.title;
-                                    //console.log(data[0]);
-                                    item.title=data[0].snippet.title;
+                                f.name = f.track.name;
+                                f.artist = f.track.artists[0].name;
+                            }); let i=1;
+                            async.mapLimit(items, 1, (item: any, cb: any) => {
+                                this.searchYoutube(item.name + " " + item.artist).then((data : any)=> {
                                     item.youtubeId = data[0].id.videoId;
-                                    item.thumb=data[0].snippet.thumbnails.default.url;
-                                   // item.title=querystring.escape(item.title);
-                                    //console.log(data[0].indexOf(item.title))
-                                    //position=position+1;
-                                    //console.log(position);
-                                   // let sql = "INSERT INTO playlist_song (video_id,video_title,thumb_url,position,playlist_id) VALUES ("+con.escape(item.youtubeId)+','+con.escape(item.title)+','+con.escape(item.thumb)+','+con.escape(position)+ ")";
-                                    //con.query(sql, function (err:any, result:any) {
-                                    //   if (err) throw err;
-                                    //   console.log("1 record inserted");
-                                     //  });
-
-
-                                    //console.log(item.youtubeId);
-                                    //return(f.url);
-                                    //return( results[0].items[0].url);
-                                    //const id=results[0].items[0].id.videoId;
-
-                                    cb(null, {url:item.youtubeId,thumburl:item.thumb});
+                                    item.thumb = data[0].snippet.thumbnails.default.url;
+                                    item.name = data[0].snippet.title;
+                                    item.url = "youtube.com/watch?v=" +  data[0].id.videoId;
+                                    const song = {
+                                        videoId : item.youtubeId,
+                                        videoTitle : item.name,
+                                        thumbUrl : item.thumb,
+                                        position : i,
+                                        _kind : "song"
+                                    };
+                                    db.insert(song);
+                                    i++;
+                                    cb(null, {id: item.youtubeId, url: item.url, thumb: item.thumb});
                                 })
-
-                            }, (err:any, results:any) => {
+                            }, (err : any, results : any) => {
                                 //console.log(results);
                                 resolve(items);
                                 return(results);
 
                             });
 
-                            //resolve(items);
                         })
                         .catch((err: any) => {
                             console.log(err);
                         });
-                })
-                .catch((err: any) => {
-                    console.log(err);
                 });
 
 
+            /*                .catch((err: any) => {
+                                console.log('Something went wrong when retrieving an access token', err);
+                            });*/
+            const items : ISpotifyTrack[] = [
 
-
-            const items: ISpotifyTrack[] = [
                 //{name: "Coming Home", artist: "Tiesto Mesto"},
-               // {name: "99 Problems", artist: "Jay-z"},
+                //{name: "99 Problems", artist: "Jay-z"},
             ];
-
-            // response.send(data);
         })
     }
-    public searchYoutube(query:string,pos:number) :  Promise<youtubeVid[]> {
-        //console.log(query);
+
+
+
+
+
+    private async searchYoutube(query: string) : Promise<IYoutubeTrack[]> {
         query = querystring.escape(query);
-
-        let url: string = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=" + query + "&key=" + ytkey;
-        let ret: any;
-        let items: any;
-        //url="'"+url+"'";
-        //console.log(url);
-
-        return new Promise<youtubeVid[]>((resolve, reject) => {
+        let url: string = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=" + query + "&key="+ytkey;
+        let ret : any;
+        return new Promise<IYoutubeTrack[]>((resolve, reject) => {
             got(url)
                 .then((data: any) => {
-
                     const decodedbody = JSON.parse(data.body);
-                    items = decodedbody.items;
-                    //console.log("Got these results:");
+                    let items = decodedbody.items;
                     items = items.map((f: any) => {
-                        //console.log(items);
                         f.name = f.snippet.title;
-                        f.url = f.id.videoId;
+                        f.url = "youtube.com/watch?v=" + f.id.videoId;
                         f.thumburl = f.snippet.thumbnails.default.url;
-                        //console.log('Name: ' + f.name);
-                        // console.log(f.name);
-                        // console.log(f.url);
-                        // console.log(f.thumburl);
-                        resolve(items)
-                        return (items);
-
-
-                    })
-                    return items;
-
+                        console.log('\nName: ' + f.name);
+                        console.log('URL: ' + f.url);
+                        console.log('Thumb: ' + f.thumburl);
+                        return (f);
+                    });
+                    resolve(items);
                 })
-
-             function check(data:any) {
-                    items = data;
-                    console.log(items);
-                    let s = {
-                        name: items[0][0].name,
-                        url: items[0][0].url,
-                        thumb: items[0][0].thumburl,
-                        position: pos
-
-                    }
-                    console.log(s);
-                    db.insertSong(s);
-                    //db.deleteSong(s);
-
-            }
-        })
+                .catch((err: any) => {
+                    console.log(err);
+                })
+        });
     }
-
-
-
-
-            // See YoutubePhp for how youtube works
-            //"https://www.googleapis.com/youtube/v3/search?key=".$this->developerKey."&part=snippet&".http_build_query($query_array);
-            //$query_array = ([
-            //                 "order" => $this->order,
-            //                 "maxResults" => $this->numVideos,
-            //                 "videoCategoryId" => $this->typeId,
-            //                 "type" => $searchType,
-            //                 "q" => $searchTerm,
-            //                 "format" => "json",
-            //             ]);
-            //https://www.googleapis.com/youtube/v3/search?key=AIzaSyCDGs5oUzVU2tE6dKfeHolpLGSzd6eoUtk&part=snippet&".http_build_query($query_array)
-            // YOUTUBE_KEY=AIzaSyCDGs5oUzVU2tE6dKfeHolpLGSzd6eoUtk
-            //    buildApiRequest('GET',
-            //                 '/youtube/v3/search',
-            //                 {'maxResults': '25',
-            //                  'part': 'snippet',
-            //                  'q': 'surfing',
-            //                  'type': ''});
-            //G
-            // ET "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q=surfing&key=AIzaSyCDGs5oUzVU2tE6dKfeHolpLGSzd6eoUtk"
 
 
 

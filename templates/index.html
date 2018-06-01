@@ -110,7 +110,7 @@
                 dataType: 'json',
                 data: JSON.stringify(params),
                 success: function (results) {
-                    const lis = results.map(f => `<li style="padding-bottom: 5px;">Checkbox: <input type="checkbox" id="myCheck" onclick="check({name:f.name,url:f.url,thumb:f.thumb}})"><img src=${f.thumb}> ${f.artist}-${f.name}-${f.youtubeId}</li>`);
+                    const lis = results.map(f => `<li style="padding-bottom: 5px;">Add Song: <button type="button" id="myCheck" onclick="check({name:${f.name},url:${f.url},thumb:${f.thumb}})"><img src=${f.thumb}> ${f.artist}-${f.name}-${f.youtubeId}</li>`);
                     $("#trackResults").html(lis.join("\n"));
                 },
             });
